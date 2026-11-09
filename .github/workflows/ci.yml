@@ -4,34 +4,34 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
+    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: |
-          pip install --index-url https://download.pytorch.org/whl/cpu torch
-          pip install -r requirements.txt pytest
+      - name: Install CPU torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install project and test deps
+        run: pip install -e . pytest
       - name: Run tests
         run: |
-          mkdir -p ci_logs
           set -o pipefail
-          pytest -q | tee ci_logs/pytest.log
-      - name: Upload test log
+          mkdir -p ci_logs
+          python -m pytest tests/ -v 2>&1 | tee ci_logs/pytest.log
+      - name: Commit CI log
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-log
-          path: ci_logs/pytest.log
-          if-no-files-found: ignore
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ci_logs/pytest.log
+          git commit -m "ci: update pytest log [skip ci]" || echo "nothing to commit"
+          git pull --rebase origin main || true
+          git push || echo "push skipped"
