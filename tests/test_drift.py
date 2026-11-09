@@ -57,3 +57,15 @@ def test_cli_help():
     p = subprocess.run([sys.executable, "drift_point.py", "--help"], capture_output=True, text=True)
     assert p.returncode == 0
     assert "rank" in p.stdout
+
+
+def test_interactive_batch():
+    p = subprocess.run(
+        [sys.executable, "drift_point.py", "--interactive", "--model", MODEL, "--rank", "2", "--steps", "3"],
+        input="hello there" + chr(10) + "the cat sat" + chr(10),
+        capture_output=True,
+        text=True,
+    )
+    assert p.returncode == 0
+    assert "drift_point" in p.stdout
+    assert "hello there" in p.stdout

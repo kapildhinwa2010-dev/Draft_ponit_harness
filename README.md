@@ -1,67 +1,118 @@
-# drift-point
+# 🧬 drift-point
 
 [![CI](https://github.com/kapildhinwa2010-dev/Draft_ponit_harness/actions/workflows/ci.yml/badge.svg)](https://github.com/kapildhinwa2010-dev/Draft_ponit_harness/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/kapildhinwa2010-dev/Draft_ponit_harness/actions/workflows/codeql.yml/badge.svg)](https://github.com/kapildhinwa2010-dev/Draft_ponit_harness/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
 
-**Measure WHERE a compressed replay first diverges from the original model.**
+## 🎯 Measure WHERE a compressed replay first diverges from the original model
 
-Compression papers report "99% of activation variance preserved". This harness
-answers the question that actually matters: at which generated token does the
-compressed model stop behaving like the original?
+Compression papers say **"99% of activation variance preserved"**.
+This harness answers the question that actually matters:
 
-**Drift-point** = the index of the first generated token where a rank-k linear
-"delta replay" disagrees with the original model. Small number, big story.
+> 🦋 **At which generated token does the compressed model stop behaving like the original?**
 
-- CPU-only, no training, bounded evaluation
-- Works with any Llama/Qwen/GPT2-style transformers model
-- Per-token match table + JSON report
-- Bounded CI tests with self-diagnosing logs
+**Drift-point** = index of the first generated token where a rank-k linear delta replay disagrees with the original model. **Small number, big story.**
 
-## Why this is different
+| 🧪 Property | ✅ Value |
+|---|---|
+| 🔥 GPU first | CUDA torch by default, CPU fully supported |
+| 🚫 No training | Pure measurement, no gradient steps |
+| 📦 Bounded | CI tests finish in seconds |
+| 🤗 Any model | Llama / Qwen / GPT2-style transformers |
 
-Everyone measures how much variance a compression keeps. Nobody measures
-*when* the behavior breaks. Drift-point turns "99% variance preserved" into
-"drift started at token 2".
+## 🔍 Why this is different
 
-## Install
+Everyone measures **how much variance** a compression keeps.
+Nobody measures **when the behavior breaks**.
+
+drift-point turns *"99% variance preserved"* into *"drift started at token 2"*.
+
+## ⚡ Install
+
+GPU (default — CUDA torch):
+
+    pip install torch
+    pip install -r requirements.txt
+
+<details>
+<summary>🖥️ CPU-only variant (laptops / servers bina GPU)</summary>
 
     pip install --index-url https://download.pytorch.org/whl/cpu torch
     pip install -r requirements.txt
 
-## Usage
+</details>
 
-CLI (defaults to Qwen2.5-0.5B, rank 16, 10 steps):
+## 💻 Usage
+
+Single prompt (defaults: Qwen2.5-0.5B, rank 16, 10 steps):
 
     python drift_point.py --prompt "Tokyo is the capital of"
 
-Custom model and rank, JSON report:
+<details>
+<summary>📦 Interactive batch mode — ek ek line me prompts pao</summary>
 
-    python drift_point.py --model Qwen/Qwen2.5-0.5B-Instruct --rank 16 --steps 10 --output report.json
+    python drift_point.py --interactive --model Qwen/Qwen2.5-0.5B-Instruct --rank 16 --steps 10
+
+    # ya file se:
+    python drift_point.py --interactive < prompts.txt
+
+Har line = ek prompt. Sab par drift-point measure hoga, ek hi JSON report me.
+
+</details>
+
+<details>
+<summary>🎛️ Full CLI options</summary>
+
+    --model       🤗 HF model id (default: Qwen/Qwen2.5-0.5B-Instruct)
+    --rank        🎚️ replay rank (default: 16)
+    --steps       📏 generated tokens to compare (default: 10)
+    --prompt      ❓ prompt, repeatable
+    --cal-prompt  📚 calibration prompt, repeatable
+    --interactive 📦 batch mode: read prompts from stdin
+    --output      💾 path for the JSON report
+
+</details>
 
 Library:
 
     from drift_point import collect_deltas, build_bases, Replay, measure_drift
 
-## Tests
+## 🧪 Tests
 
     pytest -q
 
-CI uses a tiny random GPT-2 (seconds, bounded); the example script runs the
-full Qwen2.5-0.5B replication locally on CPU.
+## 📊 Examples
 
-## What the experiments showed (Reverse.Dean)
+| 🚀 Script | Kya karta hai |
+|---|---|
+| `examples/qwen_stress_test.py` | Qwen2.5-0.5B, rank-16, 3 prompts, 10-token stress — drift_report.json |
+| `examples/rank_sweep.py` | Rank 4 → 32 sweep: kya rank badhane se drift late hota hai? |
 
-Rank-16 delta replay on Qwen2.5-0.5B, greedy generation:
+## 📈 What the experiments showed
 
-- First 3 tokens can all agree (replay looks perfect)
-- Then a single wrong token cascades: original continues a fact, replay loops
-  ("Tokyo is the capital of Japan ... located in Tokyo")
-- Drift starts at token 2 on the classic Tokyo prompt; lookahead and
-  repetition brakes can delay it, but not remove it
+Rank-16 delta replay, greedy generation (Qwen2.5-0.5B):
 
-Honest research note: drift-point is a *diagnostic*, not a fix. It does not
-make compressions better; it tells you exactly when they stop being faithful.
-See `examples/reverse_dean_replication.py` to reproduce.
+- ✅ First 3 tokens all agree — replay perfect lagta hai
+- ❌ Then one wrong token cascades — original fact continue karta hai, replay loop me fas jata hai
+- 🦋 Drift starts at token 2 on the classic Tokyo prompt
+- 🛑 Lookahead + repetition brakes can **delay** drift, not remove it
 
-## License
+<details>
+<summary>🔬 Honest research note</summary>
 
-MIT
+drift-point is a **diagnostic, not a fix**. It does not make compressions better; it tells you exactly **when** they stop being faithful. Low drift-point on one prompt does not certify a compression — run the rank sweep and multiple prompts before concluding anything.
+
+</details>
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) — ground rule: every claim needs a test or a reproducible example. Honest results only, negative results welcome. 🙏
+
+## 📖 Cite
+
+See [CITATION.cff](CITATION.cff).
+
+## ⚖️ License
+
+MIT — see [LICENSE](LICENSE).

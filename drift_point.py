@@ -7,13 +7,14 @@ generated token where the replay and the original model disagree.
 Small number, big story: instead of "99% variance preserved", you get
 "drift started at token 2".
 
-CPU-only. No training. Bounded evaluation.
+GPU-first, CPU-supported. No training. Bounded evaluation.
 """
 
 __version__ = "0.1.0"
 
 import argparse
 import json
+import sys
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -26,6 +27,14 @@ def get_layers(model):
     if hasattr(model, "transformer") and hasattr(model.transformer, "h"):
         return model.transformer.h
     raise ValueError("unsupported architecture: no decoder layer list found")
+
+
+def load_tok(name):
+    """Load a tokenizer; fall back to gpt2 for test models without one."""
+    try:
+        return AutoTokenizer.from_pretrained(name)
+    except Exception:
+        return AutoTokenizer.from_pretrained("gpt2")
 
 
 @torch.no_grad()
@@ -145,13 +154,19 @@ def main():
     ap.add_argument("--steps", type=int, default=10)
     ap.add_argument("--prompt", action="append", help="prompt to stress; repeatable")
     ap.add_argument("--cal-prompt", action="append", help="calibration prompt; repeatable")
+    ap.add_argument("--interactive", action="store_true", help="batch mode: read prompts from stdin, one per line")
     ap.add_argument("--output", help="optional path for the JSON report")
     a = ap.parse_args()
 
-    prompts = a.prompt or ["Tokyo is the capital of"]
+    if a.interactive:
+        prompts = [line.strip() for line in sys.stdin if line.strip()]
+        if not prompts:
+            ap.error("--interactive needs at least one prompt on stdin")
+    else:
+        prompts = a.prompt or ["Tokyo is the capital of"]
     cal = a.cal_prompt or prompts
 
-    tok = AutoTokenizer.from_pretrained(a.model)
+    tok = load_tok(a.model)
     model = AutoModelForCausalLM.from_pretrained(a.model, torch_dtype=torch.float32)
     model.eval()
 
@@ -161,7 +176,7 @@ def main():
     results = [measure_drift(model, tok, p, replay, a.steps) for p in prompts]
     replay.remove()
 
-    out = {"model": a.model, "rank": a.rank, "results": results}
+    out = {"model": a.model, "rank": a.rank, "interactive": bool(a.interactive), "results": results}
     text = json.dumps(out, indent=2)
     print(text)
     if a.output:
