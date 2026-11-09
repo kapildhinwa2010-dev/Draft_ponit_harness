@@ -10,6 +10,8 @@ Small number, big story: instead of "99% variance preserved", you get
 CPU-only. No training. Bounded evaluation.
 """
 
+__version__ = "0.1.0"
+
 import argparse
 import json
 

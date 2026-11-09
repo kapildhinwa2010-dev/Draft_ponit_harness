@@ -13,6 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from drift_point import Replay, build_bases, collect_deltas, measure_drift
@@ -34,7 +35,7 @@ def main():
     a = ap.parse_args()
 
     tok = AutoTokenizer.from_pretrained(a.model)
-    model = AutoModelForCausalLM.from_pretrained(a.model, torch_dtype="float32")
+    model = AutoModelForCausalLM.from_pretrained(a.model, torch_dtype=torch.float32)
     model.eval()
 
     store = collect_deltas(model, tok, PROMPTS)
