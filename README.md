@@ -36,7 +36,7 @@ Install dependencies (the current CLI runs on CPU):
     pip install -r requirements.txt
 
 <details>
-<summary>🖥️ CPU-only PyTorch variant (laptops / servers bina GPU)</summary>
+<summary>🖥️ CPU-only PyTorch variant (laptops / servers without a GPU)</summary>
 
     pip install --index-url https://download.pytorch.org/whl/cpu torch
     pip install -r requirements.txt
@@ -52,14 +52,14 @@ Single prompt (defaults: Qwen2.5-0.5B, rank 16, 10 steps):
     python drift_point.py --prompt "Tokyo is the capital of"
 
 <details>
-<summary>📦 Interactive batch mode — ek ek line me prompts pao</summary>
+<summary>📦 Interactive batch mode - one prompt per line</summary>
 
     python drift_point.py --interactive --model Qwen/Qwen2.5-0.5B-Instruct --rank 16 --steps 10
 
-    # ya file se:
+    # or from a file:
     python drift_point.py --interactive < prompts.txt
 
-Har line = ek prompt. Sab par drift-point measure hoga, ek hi JSON report me.
+Each line is one prompt. Drift-point is measured for every prompt and collected into a single JSON report.
 
 </details>
 
@@ -89,17 +89,17 @@ Library:
 
 ## 📊 Examples
 
-| 🚀 Script | Kya karta hai |
+| 🚀 Script | What it does |
 |---|---|
 | `examples/qwen_stress_test.py` | Qwen2.5-0.5B, rank-16, 3 prompts, 10-token stress — drift_report.json |
-| `examples/rank_sweep.py` | Rank 4 → 32 sweep: kya rank badhane se drift late hota hai? |
+| `examples/rank_sweep.py` | Rank 4 → 32 sweep: does raising the rank delay the drift point? |
 
 ## 📈 What the experiments showed
 
 Rank-16 delta replay, greedy generation (Qwen2.5-0.5B):
 
-- ✅ First 3 tokens all agree — replay perfect lagta hai
-- ❌ Then one wrong token cascades — original fact continue karta hai, replay loop me fas jata hai
+- ✅ First 3 tokens all agree — the replay looks perfect
+- ❌ Then one wrong token cascades — the original keeps stating the fact while the replay gets stuck in a loop
 - 🦋 Drift starts at token 2 on the classic Tokyo prompt
 - 🛑 Lookahead + repetition brakes can **delay** drift, not remove it
 
