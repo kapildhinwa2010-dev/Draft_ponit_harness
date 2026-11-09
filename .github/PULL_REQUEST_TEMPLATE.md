@@ -5,4 +5,4 @@
 ## Test evidence
 
 - [ ] pytest -q passes locally
-- [ ] CI log attached or committed (ci_logs/)
+- [ ] CI log artifact linked when relevant

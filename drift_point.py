@@ -7,7 +7,7 @@ generated token where the replay and the original model disagree.
 Small number, big story: instead of "99% variance preserved", you get
 "drift started at token 2".
 
-GPU-first, CPU-supported. No training. Bounded evaluation.
+CPU-first. No training. Bounded evaluation.
 """
 
 __version__ = "0.1.0"
@@ -29,12 +29,19 @@ def get_layers(model):
     raise ValueError("unsupported architecture: no decoder layer list found")
 
 
-def load_tok(name):
-    """Load a tokenizer; fall back to gpt2 for test models without one."""
+def load_tok(name, fallback=None):
+    """Load a tokenizer, optionally using an explicitly selected fallback."""
     try:
         return AutoTokenizer.from_pretrained(name)
-    except Exception:
-        return AutoTokenizer.from_pretrained("gpt2")
+    except Exception as exc:
+        if fallback is None:
+            raise
+        print(
+            f"Warning: could not load tokenizer for {name!r} ({exc}); "
+            f"explicitly falling back to {fallback!r}.",
+            file=sys.stderr,
+        )
+        return AutoTokenizer.from_pretrained(fallback)
 
 
 @torch.no_grad()
@@ -52,18 +59,22 @@ def collect_deltas(model, tok, prompts, max_len=64):
             store[idx].append(d.reshape(-1, d.shape[-1]).float().cpu())
         return hook
 
-    for i, lyr in enumerate(layers):
-        handles.append(lyr.register_forward_hook(make_hook(i)))
-    for p in prompts:
-        ids = tok(p, return_tensors="pt").input_ids[:, :max_len]
-        model(ids)
-    for h in handles:
-        h.remove()
+    try:
+        for i, lyr in enumerate(layers):
+            handles.append(lyr.register_forward_hook(make_hook(i)))
+        for p in prompts:
+            ids = tok(p, return_tensors="pt").input_ids[:, :max_len]
+            model(ids)
+    finally:
+        for h in handles:
+            h.remove()
     return store
 
 
 def build_bases(store, rank):
     """Per-layer SVD basis of the delta space (mean + top-rank directions)."""
+    if rank < 0:
+        raise ValueError("rank must be non-negative")
     bases = {}
     for i, chunks in store.items():
         D = torch.cat(chunks, dim=0)
@@ -102,11 +113,14 @@ class Replay:
     def remove(self):
         for h in self.handles:
             h.remove()
+        self.handles.clear()
 
 
 @torch.no_grad()
 def greedy(model, tok, prompt, steps):
     """Greedy step-by-step generation; returns list of generated token ids."""
+    if steps <= 0:
+        raise ValueError("steps must be positive")
     ids = tok(prompt, return_tensors="pt").input_ids
     gen = []
     for _ in range(steps):
@@ -120,10 +134,12 @@ def greedy(model, tok, prompt, steps):
 def measure_drift(model, tok, prompt, replay, steps=10):
     """Generate with replay OFF (reference) and ON (replay); find first mismatch."""
     replay.on = False
-    ref = greedy(model, tok, prompt, steps)
-    replay.on = True
-    rep = greedy(model, tok, prompt, steps)
-    replay.on = False
+    try:
+        ref = greedy(model, tok, prompt, steps)
+        replay.on = True
+        rep = greedy(model, tok, prompt, steps)
+    finally:
+        replay.on = False
 
     drift = None
     match = []
@@ -152,11 +168,20 @@ def main():
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
     ap.add_argument("--rank", type=int, default=16)
     ap.add_argument("--steps", type=int, default=10)
+    ap.add_argument(
+        "--tokenizer-fallback",
+        help="explicit tokenizer name to use if loading the model tokenizer fails",
+    )
     ap.add_argument("--prompt", action="append", help="prompt to stress; repeatable")
     ap.add_argument("--cal-prompt", action="append", help="calibration prompt; repeatable")
     ap.add_argument("--interactive", action="store_true", help="batch mode: read prompts from stdin, one per line")
     ap.add_argument("--output", help="optional path for the JSON report")
     a = ap.parse_args()
+
+    if a.rank < 0:
+        ap.error("--rank must be non-negative")
+    if a.steps <= 0:
+        ap.error("--steps must be positive")
 
     if a.interactive:
         prompts = [line.strip() for line in sys.stdin if line.strip()]
@@ -166,15 +191,17 @@ def main():
         prompts = a.prompt or ["Tokyo is the capital of"]
     cal = a.cal_prompt or prompts
 
-    tok = load_tok(a.model)
+    tok = load_tok(a.model, fallback=a.tokenizer_fallback)
     model = AutoModelForCausalLM.from_pretrained(a.model, torch_dtype=torch.float32)
     model.eval()
 
     store = collect_deltas(model, tok, cal)
     bases = build_bases(store, a.rank)
     replay = Replay(model, bases)
-    results = [measure_drift(model, tok, p, replay, a.steps) for p in prompts]
-    replay.remove()
+    try:
+        results = [measure_drift(model, tok, p, replay, a.steps) for p in prompts]
+    finally:
+        replay.remove()
 
     out = {"model": a.model, "rank": a.rank, "interactive": bool(a.interactive), "results": results}
     text = json.dumps(out, indent=2)

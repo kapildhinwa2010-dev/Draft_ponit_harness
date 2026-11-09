@@ -7,6 +7,6 @@
 - Toggleable per-layer delta replay hooks (SVD basis, mean-centered).
 - CLI with model / rank / steps / prompt options, JSON report output, and 📦 interactive batch mode (stdin).
 - Bounded CI smoke tests on a tiny random GPT-2.
-- Self-diagnosing CI logs (ci_logs/pytest.log committed by CI).
+- CI pytest logs are retained as downloadable workflow artifacts.
 - 🚀 Examples: Qwen2.5-0.5B stress test (rank 16) and rank sweep (drift vs rank curve).
 - 🛡️ Production infra: pyproject, CHANGELOG, CITATION.cff, CodeQL, dependabot, issue/PR templates.
