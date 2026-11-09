@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use drift-point in your research, please cite it as below."
+title: "drift-point: token-level divergence measurement for compressed model replays"
+authors:
+  - family-names: Dhinwa
+    given-names: Kapil
+version: 0.1.0
+date-released: "2026-11-09"
+license: MIT
+repository-code: "https://github.com/kapildhinwa2010-dev/Draft_ponit_harness"
+abstract: "A small harness that measures at which generated token a rank-k linear delta replay of a language model first diverges from the original model. CPU-only, no training, bounded evaluation."
+keywords:
+  - language-models
+  - compression
+  - interpretability
+  - evaluation
