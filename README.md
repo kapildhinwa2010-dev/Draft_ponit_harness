@@ -16,7 +16,7 @@ This harness answers the question that actually matters:
 
 | 🧪 Property | ✅ Value |
 |---|---|
-| 🔥 GPU first | CUDA torch by default, CPU fully supported |
+| 🖥️ Execution | CPU by default; the CLI does not automatically select CUDA |
 | 🚫 No training | Pure measurement, no gradient steps |
 | 📦 Bounded | CI tests finish in seconds |
 | 🤗 Any model | Llama / Qwen / GPT2-style transformers |
@@ -30,18 +30,20 @@ drift-point turns *"99% variance preserved"* into *"drift started at token 2"*.
 
 ## ⚡ Install
 
-GPU (default — CUDA torch):
+Install dependencies (the current CLI runs on CPU):
 
     pip install torch
     pip install -r requirements.txt
 
 <details>
-<summary>🖥️ CPU-only variant (laptops / servers bina GPU)</summary>
+<summary>🖥️ CPU-only PyTorch variant (laptops / servers bina GPU)</summary>
 
     pip install --index-url https://download.pytorch.org/whl/cpu torch
     pip install -r requirements.txt
 
 </details>
+
+The current CLI loads the model and inputs on CPU; installing a CUDA-enabled PyTorch build alone does not enable GPU execution.
 
 ## 💻 Usage
 
@@ -67,12 +69,15 @@ Har line = ek prompt. Sab par drift-point measure hoga, ek hi JSON report me.
     --model       🤗 HF model id (default: Qwen/Qwen2.5-0.5B-Instruct)
     --rank        🎚️ replay rank (default: 16)
     --steps       📏 generated tokens to compare (default: 10)
+    --tokenizer-fallback  🤗 explicit tokenizer name if model-tokenizer loading fails
     --prompt      ❓ prompt, repeatable
     --cal-prompt  📚 calibration prompt, repeatable
     --interactive 📦 batch mode: read prompts from stdin
     --output      💾 path for the JSON report
 
 </details>
+
+Tokenizer loading errors are surfaced by default. Use `--tokenizer-fallback gpt2` only when a different tokenizer is an intentional substitute; the CLI prints a warning when it uses that fallback. Rank must be non-negative and steps must be positive.
 
 Library:
 
